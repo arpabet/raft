@@ -1,0 +1,108 @@
+/*
+ * Copyright (c) 2025-2026 Karagatan LLC.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+syntax = "proto3";
+
+import "google/api/annotations.proto";
+
+option go_package = "../raftpb";
+option java_multiple_files = true;
+option java_package = "com.codeallergy";
+option java_outer_classname = "RaftProtos";
+option objc_class_prefix = "RP";
+
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "google/protobuf/empty.proto";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+    info: {
+        title: "RaftService";
+        version: "1.0";
+        contact: {
+            name: "RaftService";
+            url: "https://github.com/codeallergy/raft";
+            email: "zander@schwid.com";
+        };
+    };
+    schemes: HTTP;
+    schemes: HTTPS;
+    consumes: "application/json";
+    consumes: "application/octet-stream";
+    produces: "application/json";
+    produces: "application/octet-stream";
+};
+
+package raft;
+
+//
+//  RaftService
+//
+
+service RaftService {
+
+    rpc Bootstrap(google.protobuf.Empty) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            put: "/api/v1/raft/bootstrap"
+        };
+    }
+
+    rpc Join(RaftNode) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            put: "/api/v1/raft/join"
+        };
+    }
+
+    rpc GetConfiguration(google.protobuf.Empty) returns (RaftConfiguration) {
+        option (google.api.http) = {
+            get: "/api/v1/raft/config"
+        };
+    }
+
+    rpc ApplyCommand(Command) returns (Status) {
+        option (google.api.http) = {
+            get: "/api/v1/raft/apply"
+        };
+    }
+
+    rpc Recover(stream Content) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            put: "/api/v1/fsm/recover"
+        };
+    }
+}
+
+message RaftNode {
+    string     node_id = 1;
+    string     node_addr = 2;
+}
+
+message Content {
+    bytes  content = 1;
+}
+
+message RaftServer {
+    string node_id = 1;
+    string raft_addr = 2;
+    string suffrage = 3;
+    string api_addr = 4;
+}
+
+message RaftConfiguration {
+    string   state = 1;
+    uint64   last_index = 2;
+    repeated RaftServer server_list = 3;
+}
+
+message Status {
+    bool     updated = 1;
+    double   elapsed = 2;   // operation cost in seconds
+    string   id = 3;        // optional id field
+}
+
+message Command {
+    bytes payload = 1;
+}
+
+
