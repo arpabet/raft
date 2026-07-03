@@ -8,104 +8,81 @@ package raftvrpc
 import (
 	"context"
 	"fmt"
-	"strings"
 
+	"go.arpabet.com/cligo"
 	"go.arpabet.com/raft/raftpb"
-	"go.arpabet.com/sprint"
 	"go.arpabet.com/value-rpc/valueclient"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 )
 
-// raftCommand is the value-rpc analogue of raftgrpc's `raft` CLI. It dials the
-// control endpoint at raft-vrpc-client.address and issues config/join/bootstrap.
-type raftCommand struct {
-	Application sprint.Application `inject:""`
-	Log         *zap.Logger        `inject:""`
+// RaftGroup groups the value-rpc raft control commands under "raft"
+// (`app raft config|join|bootstrap`).
+type RaftGroup struct{}
 
-	Address string `value:"raft-vrpc-client.address,default="`
+func (RaftGroup) Group() string { return "raft" }
+
+func (RaftGroup) Help() (string, string) {
+	return "raft cluster management over value-rpc", ""
 }
 
-func RaftCommand() sprint.Command {
-	return &raftCommand{}
-}
-
-func (t *raftCommand) BeanName() string { return "raft" }
-
-func (t *raftCommand) Synopsis() string {
-	return "raft commands [config,join,bootstrap]"
-}
-
-func (t *raftCommand) Help() string {
-	helpText := `
-Usage: ./%s raft [command]
-
-	Manages the raft cluster over value-rpc.
-
-Commands:
-
-  config                   Returns the configuration of the existing Raft cluster.
-
-  join    node_id node_addr  Joins the given node to the cluster.
-
-  bootstrap                Bootstrap the new raft cluster.
-
-`
-	return strings.TrimSpace(fmt.Sprintf(helpText, t.Application.Executable()))
-}
-
-func (t *raftCommand) Run(args []string) error {
-	if len(args) >= 1 {
-		cmd := args[0]
-		args = args[1:]
-		switch cmd {
-		case "config":
-			return t.doConfig(false)
-		case "join":
-			return t.doJoin(args)
-		case "bootstrap":
-			return t.doBootstrap()
-		}
-		return xerrors.Errorf("Usage: ./%s raft [config,join,bootstrap] [args]", t.Application.Executable())
+// Commands returns the cligo beans for the raft control CLI — the group plus its
+// config/join/bootstrap commands. Add them to cligo.Main / cligo.Beans.
+func Commands() []interface{} {
+	return []interface{}{
+		&RaftGroup{},
+		&raftConfigCommand{},
+		&raftJoinCommand{},
+		&raftBootstrapCommand{},
 	}
-	return t.doConfig(true)
 }
 
-func (t *raftCommand) withClient(cb func(cli valueclient.Client) error) error {
-	if t.Address == "" {
+// dialControl connects to the raft control endpoint and runs cb with the client.
+func dialControl(address string, log *zap.Logger, cb func(cli valueclient.Client) error) error {
+	if address == "" {
 		return xerrors.New("empty property 'raft-vrpc-client.address'")
 	}
-	cli := valueclient.NewClient(t.Address, "", valueclient.WithLogger(t.Log))
+	cli := valueclient.NewClient(address, "", valueclient.WithLogger(log))
 	if err := cli.Connect(); err != nil {
-		return xerrors.Errorf("connect to %s: %v", t.Address, err)
+		return xerrors.Errorf("connect to %s: %v", address, err)
 	}
 	defer cli.Close()
 	return cb(cli)
 }
 
-func (t *raftCommand) doConfig(printState bool) error {
-	return t.withClient(func(cli valueclient.Client) error {
-		resp, err := CallGetConfiguration(context.Background(), cli)
+type raftConfigCommand struct {
+	Parent  cligo.CliGroup `cli:"group=raft"`
+	Log     *zap.Logger    `inject:""`
+	Address string         `value:"raft-vrpc-client.address,default="`
+}
+
+func (t *raftConfigCommand) Command() string        { return "config" }
+func (t *raftConfigCommand) Help() (string, string) { return "show the raft cluster configuration", "" }
+func (t *raftConfigCommand) Run(ctx context.Context) error {
+	return dialControl(t.Address, t.Log, func(cli valueclient.Client) error {
+		resp, err := CallGetConfiguration(ctx, cli)
 		if err != nil {
 			return err
 		}
-		if printState {
-			fmt.Println(resp.State)
-		} else {
-			fmt.Println(resp.String())
-		}
+		fmt.Println(resp.String())
 		return nil
 	})
 }
 
-func (t *raftCommand) doJoin(args []string) error {
-	if len(args) < 2 {
-		return xerrors.Errorf("Usage: ./%s raft join node_id node_addr", t.Application.Executable())
-	}
-	node, address := args[0], args[1]
-	fmt.Printf("Join remote node '%s' '%s' to us\n", node, address)
-	return t.withClient(func(cli valueclient.Client) error {
-		if _, err := CallJoin(context.Background(), cli, &raftpb.RaftNode{NodeId: node, NodeAddr: address}); err != nil {
+type raftJoinCommand struct {
+	Parent   cligo.CliGroup `cli:"group=raft"`
+	NodeId   string         `cli:"argument=node_id,required"`
+	NodeAddr string         `cli:"argument=node_addr,required"`
+	Log      *zap.Logger    `inject:""`
+	Address  string         `value:"raft-vrpc-client.address,default="`
+}
+
+func (t *raftJoinCommand) Command() string        { return "join" }
+func (t *raftJoinCommand) Help() (string, string) { return "join a node to the cluster", "" }
+func (t *raftJoinCommand) Run(ctx context.Context) error {
+	fmt.Printf("Join node '%s' at '%s'\n", t.NodeId, t.NodeAddr)
+	return dialControl(t.Address, t.Log, func(cli valueclient.Client) error {
+		if _, err := CallJoin(ctx, cli, &raftpb.RaftNode{NodeId: t.NodeId, NodeAddr: t.NodeAddr}); err != nil {
 			return err
 		}
 		fmt.Println("Done")
@@ -113,9 +90,17 @@ func (t *raftCommand) doJoin(args []string) error {
 	})
 }
 
-func (t *raftCommand) doBootstrap() error {
-	return t.withClient(func(cli valueclient.Client) error {
-		if _, err := CallBootstrap(context.Background(), cli); err != nil {
+type raftBootstrapCommand struct {
+	Parent  cligo.CliGroup `cli:"group=raft"`
+	Log     *zap.Logger    `inject:""`
+	Address string         `value:"raft-vrpc-client.address,default="`
+}
+
+func (t *raftBootstrapCommand) Command() string        { return "bootstrap" }
+func (t *raftBootstrapCommand) Help() (string, string) { return "bootstrap a new raft cluster", "" }
+func (t *raftBootstrapCommand) Run(ctx context.Context) error {
+	return dialControl(t.Address, t.Log, func(cli valueclient.Client) error {
+		if _, err := CallBootstrap(ctx, cli); err != nil {
 			return err
 		}
 		fmt.Println("Done")

@@ -53,8 +53,10 @@ require (
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
+	go.arpabet.com/cligo v0.5.0 // indirect
 	go.arpabet.com/sprint/sprintpb v1.2.0 // indirect
 	go.arpabet.com/store v1.3.1 // indirect
 	go.arpabet.com/uuid v1.1.1 // indirect
