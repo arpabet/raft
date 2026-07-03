@@ -5,8 +5,8 @@ go 1.25.0
 require (
 	github.com/hashicorp/raft v1.7.3
 	go.arpabet.com/glue v1.5.1
-	go.arpabet.com/raft/raftapi v0.2.0
-	go.arpabet.com/raft/raftpb v0.2.0
+	go.arpabet.com/raft/raftapi v0.3.0
+	go.arpabet.com/raft/raftpb v0.3.0
 	go.arpabet.com/sprint v1.2.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da
