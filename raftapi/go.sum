@@ -231,8 +231,8 @@ github.com/vmihailenco/tagparser/v2 v2.0.0 h1:y09buUbR+b5aycVFQs/g70pqKVZNBmxwAh
 github.com/vmihailenco/tagparser/v2 v2.0.0/go.mod h1:Wri+At7QHww0WTrCBeu4J6bNtoV6mEfg5OIWRZA9qds=
 go.arpabet.com/glue v1.5.1 h1:5g74cCXAPnn8sVCtL4izvUtL8oY0hZt0fT7eoJFRnrQ=
 go.arpabet.com/glue v1.5.1/go.mod h1:XNU9oIbp7SVmCRD6itFyx0O9WgUgGi/Nm06ojVZ9WGY=
-go.arpabet.com/raft/raftpb v0.3.0 h1:XUmlFGYOlEYfFwrCR/gdzG+sofZYPyXqaTCxL5ijOQw=
-go.arpabet.com/raft/raftpb v0.3.0/go.mod h1:jMWrCo2hEUFydFjxf7XDkioV942yfdc3DmcWxOyNDs0=
+go.arpabet.com/raft/raftpb v0.3.1 h1:gWdbzbCw/jJuoZ0NJ/17v5OLpSqNGcEVCNqq4u+g7BM=
+go.arpabet.com/raft/raftpb v0.3.1/go.mod h1:jMWrCo2hEUFydFjxf7XDkioV942yfdc3DmcWxOyNDs0=
 go.arpabet.com/sprint v1.2.0 h1:cRa/dNhKCE5N4RNcXz2nXQ3LCJDmHKZgJtTQivOvQ3U=
 go.arpabet.com/sprint v1.2.0/go.mod h1:SRMQMFPmzdtB1/Bz/gGla2OLgPRKgHv5/CTCFf2ilks=
 go.arpabet.com/sprint/sprintpb v1.2.0 h1:9lBwmWeUQnjLtYkpLD9tDDmQIGaYlJaWloc9bp2oal4=
