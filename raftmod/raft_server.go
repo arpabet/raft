@@ -10,13 +10,15 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	stdatomic "sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/raft"
+	"go.arpabet.com/cligo"
 	"go.arpabet.com/glue"
 	"go.arpabet.com/raft/raftapi"
-	"go.arpabet.com/sprint"
+	"go.arpabet.com/servion"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
@@ -28,8 +30,10 @@ type implRaftServer struct {
 	HCLog      hclog.Logger    `inject:""`
 	TlsConfig  *tls.Config     `inject:"optional"`
 
-	Application sprint.Application `inject:""`
-	NodeService sprint.NodeService `inject:""`
+	CliApp      cligo.CliApplication `inject:"optional"`
+	NodeService raftapi.NodeService  `inject:""`
+
+	AppName string `value:"application.name,default="`
 
 	LogStore          raft.LogStore      `inject:""`
 	StableStore       raft.StableStore   `inject:""`
@@ -56,10 +60,13 @@ type implRaftServer struct {
 	MaxPool     int           `value:"raft.max-pool,default=3"`
 	Timeout     time.Duration `value:"raft.timeout,default=10s"`
 
-	listener  net.Listener
-	transport *raft.NetworkTransport
+	listener net.Listener
 
-	raft *raft.Raft
+	// transport and raft are written by Bind/Serve (servion lifecycle goroutine)
+	// and polled concurrently through Transport()/Raft() (e.g. by bootstrap
+	// watchers), so they are atomic pointers.
+	transport stdatomic.Pointer[raft.NetworkTransport]
+	raft      stdatomic.Pointer[raft.Raft]
 
 	alive        atomic.Bool
 	shutdownOnce sync.Once
@@ -82,9 +89,15 @@ func (t *implRaftServer) BeanName() string {
 	return "raft-server"
 }
 
+// applicationName is the cluster role name; must match the serf "role" tag
+// stamped by SerfConfigFactory.
+func (t *implRaftServer) applicationName() string {
+	return resolveApplicationName(t.AppName, t.CliApp)
+}
+
 func (t *implRaftServer) GetStats(cb func(name, value string) bool) error {
-	if t.raft != nil {
-		for k, v := range t.raft.Stats() {
+	if r := t.raft.Load(); r != nil {
+		for k, v := range r.Stats() {
 			cb(k, v)
 		}
 	}
@@ -99,7 +112,7 @@ func (t *implRaftServer) Bind() (err error) {
 	}
 
 	if t.SerfAddress == "" {
-		t.Log.Warn("SerfAddressEmpty", zap.String("prop", "raft.bind-address"))
+		t.Log.Warn("SerfAddressEmpty", zap.String("prop", "serf.bind-address"))
 		return nil
 	}
 
@@ -121,7 +134,7 @@ func (t *implRaftServer) Bind() (err error) {
 
 	t.Log.Info("RaftServerFactory", zap.String("bind", t.listener.Addr().String()), zap.String("advertise", advertise.String()))
 
-	t.transport, err = newTCPTransport(t.listener, advertise, t.TlsConfig, func(stream raft.StreamLayer) *raft.NetworkTransport {
+	transport, err := newTCPTransport(t.listener, advertise, t.TlsConfig, func(stream raft.StreamLayer) *raft.NetworkTransport {
 		config := &raft.NetworkTransportConfig{Stream: stream, MaxPool: t.MaxPool, Timeout: t.Timeout, Logger: t.HCLog.Named("raft-transport"),
 			ServerAddressProvider: t.ServerLookup}
 		return raft.NewNetworkTransportWithConfig(config)
@@ -131,6 +144,7 @@ func (t *implRaftServer) Bind() (err error) {
 	if err != nil {
 		return xerrors.Errorf("raft transport creation error for address '%s', %v", advertise.String(), err)
 	}
+	t.transport.Store(transport)
 
 	return nil
 }
@@ -140,28 +154,45 @@ func (t *implRaftServer) Alive() bool {
 }
 
 func (t *implRaftServer) Transport() (raft.Transport, bool) {
-	return t.transport, t.transport != nil
+	tr := t.transport.Load()
+	if tr == nil {
+		return nil, false
+	}
+	return tr, true
 }
 
 func (t *implRaftServer) Raft() (*raft.Raft, bool) {
-	return t.raft, t.raft != nil
+	r := t.raft.Load()
+	return r, r != nil
 }
 
 func (t *implRaftServer) IsLeader() bool {
-	return t.alive.Load() && t.raft.State() == raft.Leader
+	r := t.raft.Load()
+	return t.alive.Load() && r != nil && r.State() == raft.Leader
 }
 
 func (t *implRaftServer) ListenAddress() net.Addr {
 	if t.listener != nil {
 		return t.listener.Addr()
 	} else {
-		return sprint.EmptyAddr
+		return servion.EmptyAddr
 	}
 }
 
 func (t *implRaftServer) Serve() (err error) {
 
-	panicToError(&err)
+	defer panicToError(&err)
+
+	transport := t.transport.Load()
+	if transport == nil {
+		// Bind was skipped (no raft/serf bind address configured): stay dormant
+		// instead of panicking inside raft.NewRaft with a nil transport. Serve
+		// must still block: servion shuts the whole application down as soon
+		// as the first server returns.
+		t.Log.Warn("RaftServerDormant", zap.String("reason", "transport not initialized, check 'raft.bind-address' and 'serf.bind-address'"))
+		<-t.shutdownCh
+		return nil
+	}
 
 	t.Log.Info("RaftServerServe", zap.String("addr", t.RaftAddress), zap.Bool("tls", t.TlsConfig != nil))
 
@@ -171,10 +202,11 @@ func (t *implRaftServer) Serve() (err error) {
 	config.LocalID = raft.ServerID(t.NodeService.NodeIdHex())
 	config.Logger = t.HCLog.Named("raft")
 
-	t.raft, err = raft.NewRaft(config, t.FSM, t.LogStore, t.StableStore, t.FileSnapshotStore, t.transport)
+	r, err := raft.NewRaft(config, t.FSM, t.LogStore, t.StableStore, t.FileSnapshotStore, transport)
 	if err != nil {
 		return err
 	}
+	t.raft.Store(r)
 
 	/*
 		t.serf, err = serf.Create(t.SerfConfig)
@@ -199,6 +231,10 @@ func (t *implRaftServer) Serve() (err error) {
 	*/
 
 	t.alive.Store(true)
+
+	// Block until Shutdown: the servion runtime stops all servers as soon as
+	// the first Serve returns, and the raft node runs in the background.
+	<-t.shutdownCh
 	return nil
 }
 
@@ -220,16 +256,16 @@ func (t *implRaftServer) Shutdown() error {
 			}
 		*/
 
-		if t.raft != nil {
-			future := t.raft.Shutdown()
+		if r := t.raft.Load(); r != nil {
+			future := r.Shutdown()
 			go func() {
 				if err := future.Error(); err != nil {
 					t.Log.Error("RaftShutdown", zap.Error(err))
 				}
 			}()
 		}
-		if t.transport != nil {
-			t.transport.Close()
+		if transport := t.transport.Load(); transport != nil {
+			transport.Close()
 		}
 		if t.listener != nil {
 			t.listener.Close()

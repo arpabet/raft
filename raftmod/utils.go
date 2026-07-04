@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	"go.arpabet.com/cligo"
+	"go.arpabet.com/servion"
 	"golang.org/x/xerrors"
 )
 
@@ -152,4 +154,49 @@ func ParseAndAdjustTCPAddr(address string, seq int) (*net.TCPAddr, error) {
 
 	return tcpAddr, nil
 
+}
+
+/**
+Resolves the application name: explicit 'application.name' property first,
+then the cligo application bean, then "raft".
+*/
+func resolveApplicationName(prop string, cliApp cligo.CliApplication) string {
+	if prop != "" {
+		return prop
+	}
+	if cliApp != nil {
+		return cliApp.Name()
+	}
+	return "raft"
+}
+
+/**
+Maps a dotted property key to an environment variable name,
+e.g. raft.snapshot-key -> RAFT_SNAPSHOT_KEY.
+*/
+func envKey(key string) string {
+	b := make([]byte, len(key))
+	for i := 0; i < len(key); i++ {
+		c := key[i]
+		switch {
+		case c >= 'a' && c <= 'z':
+			b[i] = c - 'a' + 'A'
+		case (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'):
+			b[i] = c
+		default:
+			b[i] = '_'
+		}
+	}
+	return string(b)
+}
+
+/**
+Home directory of the application: the servion runtime home when running
+under servion, otherwise the current directory.
+*/
+func homeDir(runtime servion.Runtime) string {
+	if runtime != nil {
+		return runtime.HomeDir()
+	}
+	return "."
 }

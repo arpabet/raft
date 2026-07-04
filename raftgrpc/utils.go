@@ -36,9 +36,15 @@ func (t *implRaftGrpcServer) doWithRaft(ctx context.Context, methodName string, 
 
 func (t *implRaftGrpcServer) doAuthorized(ctx context.Context, methodName string, cb func(ctx context.Context) error) (err error) {
 
-	user, ok := t.AuthorizationMiddleware.GetUser(ctx)
-	if !ok || !user.Roles["ADMIN"] {
-		return status.Errorf(codes.Unauthenticated, "role USER is required")
+	// When no Auth bean is configured the gate is skipped — the transport
+	// (e.g. mTLS) is expected to authenticate peers.
+	username := "anonymous"
+	if t.Auth != nil {
+		user, ok := t.Auth.GetUser(ctx)
+		if !ok || !user.Roles["ADMIN"] {
+			return status.Errorf(codes.Unauthenticated, "role ADMIN is required")
+		}
+		username = user.Username
 	}
 
 	defer func() {
@@ -54,7 +60,7 @@ func (t *implRaftGrpcServer) doAuthorized(ctx context.Context, methodName string
 		}
 
 		if err != nil {
-			err = t.wrapError(err, methodName, user.Username)
+			err = t.wrapError(err, methodName, username)
 		}
 	}()
 
@@ -71,11 +77,11 @@ func (t *implRaftGrpcServer) wrapError(err error, method, username string) error
 		return xerrors.New(issue)
 	}
 	message := "internal error"
-	if strings.Contains("concurrent transaction", issue) {
+	if strings.Contains(issue, "concurrent transaction") {
 		message = "concurrent transaction"
-	} else if strings.Contains("not found", issue) {
+	} else if strings.Contains(issue, "not found") {
 		message = "object not found"
-	} else if strings.Contains("exist", issue) {
+	} else if strings.Contains(issue, "exist") {
 		message = "object already exist"
 	}
 	id := t.NodeService.Issue().String()
@@ -83,30 +89,29 @@ func (t *implRaftGrpcServer) wrapError(err error, method, username string) error
 	return status.Errorf(codes.Internal, "%s %s", message, id)
 }
 
+// channelReader adapts a channel of chunks to an io.Reader. The producer may set
+// err before closing the channel to end the stream with that error instead of a
+// clean io.EOF (close(chan) is the happens-before edge making err visible).
 type channelReader struct {
 	incoming <-chan []byte
 	buf      []byte
+	err      error
 }
 
 func (t *channelReader) Read(p []byte) (int, error) {
-	if t.buf == nil {
+	for len(t.buf) == 0 {
 		var ok bool
 		t.buf, ok = <-t.incoming
 		if !ok {
+			if t.err != nil {
+				return 0, t.err
+			}
 			return 0, io.EOF
 		}
 	}
-	n := len(p)
-	m := len(t.buf)
-	if m <= n {
-		copy(p[:m], t.buf)
-		t.buf = nil
-		return m, nil
-	} else {
-		copy(p, t.buf[:n])
-		t.buf = t.buf[n:]
-		return n, nil
-	}
+	n := copy(p, t.buf)
+	t.buf = t.buf[n:]
+	return n, nil
 }
 
 func (t *channelReader) Close() error {

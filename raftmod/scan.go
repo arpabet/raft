@@ -6,6 +6,7 @@
 package raftmod
 
 var RaftServices = []interface{}{
+	NodeService(),
 	RaftLogStoreFactory(),
 	RaftStableStoreFactory(),
 	RaftSnapshotFactory(),

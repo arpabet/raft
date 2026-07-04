@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/raft"
 	"go.arpabet.com/raft/raftapi"
 	"go.arpabet.com/raft/raftpb"
-	"go.arpabet.com/sprint"
 	"go.arpabet.com/value-rpc/valueclient"
 	"go.arpabet.com/value-rpc/valueserver"
 	"go.arpabet.com/value-rpc/valuerpc"
@@ -37,13 +36,13 @@ const (
 // gRPC raftgrpc server: same raft semantics, valuerpc errors instead of gRPC
 // status codes. Construct one and Register it on a valueserver.Server.
 type Handler struct {
-	NodeService    sprint.NodeService
+	NodeService    raftapi.NodeService
 	RaftServer     raftapi.RaftServer
 	RaftService    raftapi.RaftService
 	RaftClientPool raftapi.RaftClientPool // used to forward to the leader; may be nil
 	// Auth gates the control API to ADMIN callers. Nil disables the gate (e.g. in
 	// tests or when the transport already authenticates peers via mTLS).
-	Auth    sprint.AuthorizationMiddleware
+	Auth    raftapi.AuthorizationMiddleware
 	Timeout time.Duration
 	Log     *zap.Logger
 }
@@ -139,6 +138,20 @@ func (t *Handler) GetConfiguration(ctx context.Context, _ struct{}) (*raftpb.Raf
 	return resp, err
 }
 
+// asFSMResponse accepts the raftapi.FSMResponse contract by value or by pointer,
+// since application FSMs return either form.
+func asFSMResponse(resp interface{}) (raftapi.FSMResponse, bool) {
+	switch v := resp.(type) {
+	case raftapi.FSMResponse:
+		return v, true
+	case *raftapi.FSMResponse:
+		if v != nil {
+			return *v, true
+		}
+	}
+	return raftapi.FSMResponse{}, false
+}
+
 func (t *Handler) ApplyCommand(ctx context.Context, cmd *raftpb.Command) (*raftpb.Status, error) {
 	status := &raftpb.Status{}
 	err := t.doWithRaft(ctx, "ApplyCommand", func(ctx context.Context, r *raft.Raft) error {
@@ -173,7 +186,7 @@ func (t *Handler) ApplyCommand(ctx context.Context, cmd *raftpb.Command) (*raftp
 			return err
 		}
 		resp := f.Response()
-		fr, ok := resp.(raftapi.FSMResponse)
+		fr, ok := asFSMResponse(resp)
 		if !ok {
 			return xerrors.Errorf("invalid raft response %v", resp)
 		}

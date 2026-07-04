@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/raft"
 	"go.arpabet.com/glue"
@@ -31,6 +32,11 @@ type implRaftClientPool struct {
 	RaftAddress    string `value:"raft.bind-address,default="`
 	RPCBean        string `value:"raft.rpc-bean-name,default="`
 	RPCServiceName string `value:"raft.rpc-service-name,default="`
+
+	// DialTimeout bounds a single connection attempt in GetAPIConn. Without it a
+	// blocking dial to a down peer would hang the caller (and everyone waiting on
+	// the same address) forever.
+	DialTimeout time.Duration `value:"raft.timeout,default=10s"`
 
 	portDiff int
 
@@ -123,6 +129,10 @@ tryAgain:
 
 	client, err := t.doConnect(raftAddress)
 	if err != nil {
+		// Remove our connecting stub so waiters (woken by the deferred close)
+		// and later callers retry the connection instead of spinning forever on
+		// a stub whose waitCh is already closed.
+		t.clients.Delete(raftAddress)
 		return nil, err
 	}
 
@@ -142,11 +152,19 @@ func (t *implRaftClientPool) doConnect(raftAddress raft.ServerAddress) (*clientC
 		NextProtos:         []string{"h2"},
 	}
 
-	conn, err := grpc.Dial(endpoint,
+	dialTimeout := t.DialTimeout
+	if dialTimeout <= 0 {
+		dialTimeout = 10 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, endpoint,
 		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
-		grpc.WithBlock())
+		grpc.WithBlock(),
+		grpc.WithReturnConnectionError())
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("dial raft api endpoint '%s', %v", endpoint, err)
 	}
 
 	client := &clientConnection{

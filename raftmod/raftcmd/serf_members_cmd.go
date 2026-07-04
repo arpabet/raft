@@ -6,7 +6,7 @@
 package raftcmd
 
 import (
-	"flag"
+	"context"
 	"fmt"
 	"net"
 	"sort"
@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/serf/client"
 	"github.com/hashicorp/serf/cmd/serf/command/agent"
 	"github.com/ryanuber/columnize"
+	"go.arpabet.com/cligo"
 	"golang.org/x/xerrors"
 )
 
@@ -33,94 +34,54 @@ type MembersContainer struct {
 }
 
 type serfMembersCommand struct {
+	Parent cligo.CliGroup `cli:"group=serf"`
+	Prov   ClientProvider `inject:""`
+
+	Detailed bool     `cli:"option=detailed,default=false,help=Show additional information such as protocol versions (text format only)."`
+	Format   string   `cli:"option=format,default=text,help=Output format: 'json' or 'text'."`
+	Name     string   `cli:"option=name,default=,help=Show only members matching the anchored regexp."`
+	Status   string   `cli:"option=status,default=,help=Show only members with status matching the regexp."`
+	Tags     []string `cli:"option=tag,help=Show only members with tag key=regexp; repeatable."`
 }
 
-func SerfMembersCommand() SerfCommand {
+func SerfMembersCommand() cligo.CliCommand {
 	return &serfMembersCommand{}
 }
 
-func (t serfMembersCommand) Help() string {
-	helpText := `
-Usage: serf members [options]
-
-  Outputs the members of a running Serf agent.
-
-Options:
-
-  -detailed                 Additional information such as protocol versions
-                            will be shown (only affects text output format).
-
-  -format                   If provided, output is returned in the specified
-                            format. Valid formats are 'json', and 'text' (default)
-
-  -name=<regexp>            If provided, only members matching the regexp are
-                            returned. The regexp is anchored at the start and end,
-                            and must be a full match.
-
-  -status=<regexp>          If provided, output is filtered to only nodes matching
-                            the regular expression for status
-
-  -tag <key>=<regexp>       If provided, output is filtered to only nodes with the
-                            tag <key> with value matching the regular expression.
-                            tag can be specified multiple times to filter on
-                            multiple keys. The regexp is anchored at the start and end,
-                            and must be a full match.
-
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (t serfMembersCommand) SubCommand() string {
+func (t *serfMembersCommand) Command() string {
 	return "members"
 }
 
-func (t serfMembersCommand) Synopsis() string {
-	return "Lists the members of a Serf cluster"
+func (t *serfMembersCommand) Help() (string, string) {
+	return "Lists the members of a Serf cluster.",
+		`Outputs the members of a running Serf agent, optionally filtered by name,
+status and tags.`
 }
 
-func (t serfMembersCommand) Run(prov ClientProvider, args []string) error {
+func (t *serfMembersCommand) Run(ctx context.Context) error {
 
-	var detailed bool
-	var statusFilter, nameFilter, format string
-	var tags []string
-	cmdFlags := flag.NewFlagSet("members", flag.ContinueOnError)
-	cmdFlags.Usage = func() { println(t.Help()) }
-	cmdFlags.BoolVar(&detailed, "detailed", false, "detailed output")
-	cmdFlags.StringVar(&statusFilter, "status", "", "status filter")
-	cmdFlags.StringVar(&format, "format", "text", "output format")
-	cmdFlags.Var((*agent.AppendSliceValue)(&tags), "tag", "tag filter")
-	cmdFlags.StringVar(&nameFilter, "name", "", "name filter")
-
-	if err := cmdFlags.Parse(args); err != nil {
-		return err
-	}
-
-	reqTags, err := agent.UnmarshalTags(tags)
+	reqTags, err := agent.UnmarshalTags(t.Tags)
 	if err != nil {
 		return xerrors.Errorf("unmarshal tags, %v", err)
 	}
 
-	return prov.DoWithClient(func(cli *client.RPCClient) error {
-		return t.doRun(cli, reqTags, statusFilter, nameFilter, format, detailed)
+	return t.Prov.DoWithClient(func(cli *client.RPCClient) error {
+
+		members, err := cli.MembersFiltered(reqTags, t.Status, t.Name)
+		if err != nil {
+			return xerrors.Errorf("retrieving members, %v", err)
+		}
+
+		container := parseMembers(members, t.Detailed)
+
+		output, err := formatOutput(container, t.Format)
+		if err != nil {
+			return xerrors.Errorf("encoding error, %v", err)
+		}
+
+		println(string(output))
+		return nil
 	})
-}
-
-func (t serfMembersCommand) doRun(client *client.RPCClient, tags map[string]string, statusFilter, nameFilter, format string, detailed bool) error {
-
-	members, err := client.MembersFiltered(tags, statusFilter, nameFilter)
-	if err != nil {
-		return xerrors.Errorf("retrieving members, %v", err)
-	}
-
-	container := parseMembers(members, detailed)
-
-	output, err := formatOutput(container, format)
-	if err != nil {
-		return xerrors.Errorf("encoding error, %v", err)
-	}
-
-	println(string(output))
-	return nil
 }
 
 func parseMembers(members []client.Member, detailed bool) MembersContainer {

@@ -22,14 +22,18 @@ func NewEncryptedSnapshotStore(store raft.SnapshotStore, token string) (raft.Sna
 
 func (t *implEncryptedSnapshotStore) Create(version raft.SnapshotVersion, index, term uint64, configuration raft.Configuration,
 	configurationIndex uint64, trans raft.Transport) (sink raft.SnapshotSink, err error) {
-	sink, err = t.delegate.Create(version, index, term, configuration, configurationIndex, trans)
+	inner, err := t.delegate.Create(version, index, term, configuration, configurationIndex, trans)
 	if err != nil {
-		return
+		return nil, err
 	}
 	sessionKey := t.newSessionKey(index, term)
-	sink, err = StreamEncrypter(sessionKey, sink)
+	sink, err = StreamEncrypter(sessionKey, inner)
 	clean(sessionKey)
-	return
+	if err != nil {
+		inner.Cancel()
+		return nil, err
+	}
+	return sink, nil
 }
 
 func (t *implEncryptedSnapshotStore) List() ([]*raft.SnapshotMeta, error) {

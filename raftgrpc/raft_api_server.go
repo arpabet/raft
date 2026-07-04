@@ -157,17 +157,32 @@ func (t *implRaftGrpcServer) ApplyCommand(ctx context.Context, cmd *raftpb.Comma
 			return err
 		}
 
-		resp := f.Response()
-		if r, ok := resp.(raftapi.FSMResponse); ok {
-			status = r.Status
-			status.Elapsed = time.Since(start).Seconds()
-			return r.Err
+		fr, ok := asFSMResponse(f.Response())
+		if !ok {
+			return xerrors.Errorf("invalid raft response %v", f.Response())
 		}
-
-		return xerrors.Errorf("invalid raft response %v", resp)
+		if fr.Status != nil {
+			status = fr.Status
+		}
+		status.Elapsed = time.Since(start).Seconds()
+		return fr.Err
 	})
 
 	return
+}
+
+// asFSMResponse accepts the raftapi.FSMResponse contract by value or by pointer,
+// since application FSMs return either form.
+func asFSMResponse(resp interface{}) (raftapi.FSMResponse, bool) {
+	switch v := resp.(type) {
+	case raftapi.FSMResponse:
+		return v, true
+	case *raftapi.FSMResponse:
+		if v != nil {
+			return *v, true
+		}
+	}
+	return raftapi.FSMResponse{}, false
 }
 
 func (t *implRaftGrpcServer) Recover(stream raftpb.RaftService_RecoverServer) (err error) {
@@ -175,22 +190,48 @@ func (t *implRaftGrpcServer) Recover(stream raftpb.RaftService_RecoverServer) (e
 	return t.doWithRaft(stream.Context(), "Recover", func(ctx context.Context, r *raft.Raft) error {
 
 		channel := make(chan []byte)
-		defer close(channel)
+		reader := &channelReader{incoming: channel}
+		result := make(chan error, 1)
 
-		go t.recoverFromSnapshot(r, &channelReader{incoming: channel})
+		go func() {
+			result <- t.recoverFromSnapshot(r, reader)
+		}()
 
+		var recvErr error
 		for {
-			content, err := stream.Recv()
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				return err
+			content, e := stream.Recv()
+			if e == io.EOF {
+				break
 			}
-			channel <- content.Content
+			if e != nil {
+				recvErr = e
+				break
+			}
+			select {
+			case channel <- content.Content:
+			case restoreErr := <-result:
+				// The restore ended while the client is still streaming — surface
+				// its error instead of blocking forever on an unread channel.
+				if restoreErr == nil {
+					restoreErr = xerrors.New("snapshot restore finished before stream completed")
+				}
+				return restoreErr
+			}
 		}
 
-		return nil
+		// End the reader's stream: with a clean io.EOF after a complete upload, or
+		// with the receive error so a half-uploaded snapshot is never restored.
+		reader.err = recvErr
+		close(channel)
+
+		restoreErr := <-result
+		if recvErr != nil {
+			return recvErr
+		}
+		if restoreErr != nil {
+			return restoreErr
+		}
+		return stream.SendAndClose(empty)
 
 	})
 }
@@ -207,10 +248,11 @@ func (t *implRaftGrpcServer) recoverFromSnapshot(r *raft.Raft, reader io.ReadClo
 	}
 
 	// make copy of previous snapshot
-	meta, _, err := r.Snapshot().Open()
+	meta, source, err := r.Snapshot().Open()
 	if err != nil {
 		return err
 	}
+	source.Close()
 
 	// break sequence
 	meta.Index = r.LastIndex() + 2

@@ -10,7 +10,6 @@ import (
 
 	"go.arpabet.com/glue"
 	"go.arpabet.com/raft/raftapi"
-	"go.arpabet.com/sprint"
 	"go.arpabet.com/value-rpc/valueserver"
 	"go.uber.org/zap"
 )
@@ -21,13 +20,13 @@ import (
 type ControlServer struct {
 	Server valueserver.Server `inject:""`
 
-	NodeService    sprint.NodeService     `inject:""`
+	NodeService    raftapi.NodeService    `inject:""`
 	RaftServer     raftapi.RaftServer     `inject:""`
 	RaftService    raftapi.RaftService    `inject:""`
 	RaftClientPool raftapi.RaftClientPool `inject:""`
 
 	// Optional: when present, the control API is gated to ADMIN callers.
-	Auth sprint.AuthorizationMiddleware `inject:"optional"`
+	Auth raftapi.AuthorizationMiddleware `inject:"optional"`
 
 	RaftTimeout time.Duration `value:"raft.timeout,default=10s"`
 

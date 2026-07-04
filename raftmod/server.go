@@ -37,7 +37,10 @@ func ParseServerTags(m serf.Member, role string) (*raftapi.Server, error) {
 		return nil, xerrors.Errorf("parsing 'grpc-port' tag '%s', %v", grpcStr, err)
 	}
 
-	addr := &net.TCPAddr{IP: m.Addr, Port: port}
+	// Addr feeds ServerLookup.ServerAddr, the raft transport's
+	// ServerAddressProvider callback, so it must point at the peer's raft
+	// consensus port — not the serf gossip port carried by the "port" tag.
+	addr := &net.TCPAddr{IP: m.Addr, Port: raftPort}
 
 	server := &raftapi.Server{
 		Name:     m.Name,

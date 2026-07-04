@@ -13,8 +13,9 @@ exposes the leader-aware control API over the application's gRPC server.
 - `raftgrpc.RaftGrpcServer()` — server bean (`raftapi.RaftGrpcServer`); registers
   the `raftpb.RaftService` on the injected `*grpc.Server`. Add to the API
   `ServerRole` alongside `raftmod.RaftServices`.
-- `raftgrpc.RaftCommand()` — the `raft` admin command (`sprint.Command`); talks to
-  a running node over the `raft` client scanner.
+- `raftgrpc.Commands()` — the `raft` cligo command group (`config` / `join` /
+  `bootstrap`); talks to a running node's control endpoint configured by the
+  `raft-grpc-client.address` property.
 
 History: ported from `github.com/openraft/raftgrpc` (formerly
 `github.com/codeallergy/raftgrpc`) into the arpabet namespace.

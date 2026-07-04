@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/serf/serf"
 	"go.arpabet.com/glue"
 	"go.arpabet.com/raft/raftapi"
-	"go.arpabet.com/sprint"
+	"go.arpabet.com/servion"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
@@ -27,7 +27,7 @@ type implSerfServer struct {
 	Log         *zap.Logger        `inject:""`
 	HCLog       hclog.Logger       `inject:""`
 	TlsConfig   *tls.Config        `inject:"optional"`
-	NodeService sprint.NodeService `inject:""`
+	NodeService raftapi.NodeService `inject:""`
 
 	SerfConfig  *serf.Config `inject:""`
 	agentConfig *agent.Config
@@ -131,13 +131,13 @@ func (t *implSerfServer) ListenAddress() net.Addr {
 	if t.listener != nil {
 		return t.listener.Addr()
 	} else {
-		return sprint.EmptyAddr
+		return servion.EmptyAddr
 	}
 }
 
 func (t *implSerfServer) Serve() (err error) {
 
-	panicToError(&err)
+	defer panicToError(&err)
 
 	t.Log.Info("SerfRPCServerServe", zap.String("addr", t.RPCAddress), zap.Bool("tls", t.TlsConfig != nil))
 
@@ -152,6 +152,9 @@ func (t *implSerfServer) Serve() (err error) {
 	t.ipc = agent.NewAgentIPC(t.serfAgent, t.RPCAuthKey, t.listener, t.SerfConfig.LogOutput, agent.NewLogWriter(512), false)
 	t.alive.Store(true)
 
+	// Block until Shutdown: the servion runtime stops all servers as soon as
+	// the first Serve returns, and the serf agent runs in the background.
+	<-t.shutdownCh
 	return nil
 }
 
@@ -188,7 +191,11 @@ func (t *implSerfServer) Config() (*serf.Config, bool) {
 }
 
 func (t *implSerfServer) Serf() (*serf.Serf, bool) {
-	return t.serfAgent.Serf(), t.serfAgent != nil
+	if t.serfAgent == nil {
+		return nil, false
+	}
+	s := t.serfAgent.Serf()
+	return s, s != nil
 }
 
 func (t *implSerfServer) Agent() (*agent.Agent, bool) {

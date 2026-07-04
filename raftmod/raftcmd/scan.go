@@ -5,7 +5,13 @@
 
 package raftcmd
 
+/**
+RaftCommands are the cligo beans of the 'serf' command group. Register them
+with the application, e.g. cligo.New(cligo.Beans(raftcmd.RaftCommands...)).
+*/
 var RaftCommands = []interface{}{
+	SerfGroup(),
+	SerfClientProvider(),
 	SerfJoinCommand(),
 	SerfMembersCommand(),
 	SerfEventCommand(),
@@ -16,5 +22,4 @@ var RaftCommands = []interface{}{
 	SerfReachabilityCommand(),
 	SerfRttCommand(),
 	SerfTagsCommand(),
-	SerfCommands(),
 }

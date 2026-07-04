@@ -6,67 +6,51 @@
 package raftcmd
 
 import (
-	"flag"
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/serf/client"
+	"go.arpabet.com/cligo"
 	"go.uber.org/atomic"
 	"golang.org/x/xerrors"
 )
 
 type serfMonitorCommand struct {
+	Parent cligo.CliGroup `cli:"group=serf"`
+	Prov   ClientProvider `inject:""`
+
+	LogLevel string `cli:"option=log-level,default=INFO,help=Log level of the agent."`
+
 	quitting atomic.Bool
 }
 
-func SerfMonitorCommand() SerfCommand {
+func SerfMonitorCommand() cligo.CliCommand {
 	return &serfMonitorCommand{}
 }
 
-func (t serfMonitorCommand) Help() string {
-	helpText := `
-Usage: serf monitor [options]
-
-  Shows recent log messages of a Serf agent, and attaches to the agent,
-  outputting log messages as they occur in real time. The monitor lets you
-  listen for log levels that may be filtered out of the Serf agent. For
-  example your agent may only be logging at INFO level, but with the monitor
-  you can see the DEBUG level logs.
-
-Options:
-
-  -log-level=info          Log level of the agent.
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (t serfMonitorCommand) SubCommand() string {
+func (t *serfMonitorCommand) Command() string {
 	return "monitor"
 }
 
-func (t serfMonitorCommand) Synopsis() string {
-	return "Stream logs from a Serf agent"
+func (t *serfMonitorCommand) Help() (string, string) {
+	return "Stream logs from a Serf agent.",
+		`Shows recent log messages of a Serf agent, and attaches to the agent,
+outputting log messages as they occur in real time. The monitor lets you
+listen for log levels that may be filtered out of the Serf agent. For
+example your agent may only be logging at INFO level, but with the monitor
+you can see the DEBUG level logs.`
 }
 
-func (t serfMonitorCommand) Run(prov ClientProvider, args []string) error {
-	var logLevel string
-	cmdFlags := flag.NewFlagSet("monitor", flag.ContinueOnError)
-	cmdFlags.Usage = func() { println(t.Help()) }
-	cmdFlags.StringVar(&logLevel, "log-level", "INFO", "log level")
-
-	if err := cmdFlags.Parse(args); err != nil {
-		return err
-	}
-
-	return prov.DoWithClient(func(cli *client.RPCClient) error {
-		return t.doRun(cli, logLevel)
+func (t *serfMonitorCommand) Run(ctx context.Context) error {
+	return t.Prov.DoWithClient(func(cli *client.RPCClient) error {
+		return t.doRun(cli)
 	})
 }
 
-func (t serfMonitorCommand) doRun(client *client.RPCClient, logLevel string) error {
+func (t *serfMonitorCommand) doRun(client *client.RPCClient) error {
 
 	eventCh := make(chan map[string]interface{}, 1024)
 	streamHandle, err := client.Stream("*", eventCh)
@@ -76,7 +60,7 @@ func (t serfMonitorCommand) doRun(client *client.RPCClient, logLevel string) err
 	defer client.Stop(streamHandle)
 
 	logCh := make(chan string, 4096)
-	monHandle, err := client.Monitor(logutils.LogLevel(logLevel), logCh)
+	monHandle, err := client.Monitor(logutils.LogLevel(t.LogLevel), logCh)
 	if err != nil {
 		return xerrors.Errorf("starting monitor, %v", err)
 	}

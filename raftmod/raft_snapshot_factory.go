@@ -11,17 +11,20 @@ import (
 	"reflect"
 
 	"github.com/hashicorp/raft"
+	"go.arpabet.com/cligo"
 	"go.arpabet.com/glue"
-	"go.arpabet.com/sprint"
+	"go.arpabet.com/servion"
 	"golang.org/x/xerrors"
 )
 
 var SnapshotStoreClass = reflect.TypeOf((*raft.SnapshotStore)(nil)).Elem()
 
 type implRaftSnapshotFactory struct {
-	Application                       sprint.Application                       `inject:""`
-	Properties                        glue.Properties                          `inject:""`
-	SystemEnvironmentPropertyResolver sprint.SystemEnvironmentPropertyResolver `inject:""`
+	CliApp     cligo.CliApplication `inject:"optional"`
+	Runtime    servion.Runtime      `inject:"optional"`
+	Properties glue.Properties      `inject:""`
+
+	AppName string `value:"application.name,default="`
 
 	RetainSnapshotCount int    `value:"raft.snapshot-retain-count,default=5"`
 	KeyProperty         string `value:"raft.snapshot-key-bean,default="`
@@ -41,13 +44,13 @@ func (t *implRaftSnapshotFactory) Object() (object interface{}, err error) {
 
 	dataDir := t.DataDir
 	if dataDir == "" {
-		dataDir = filepath.Join(t.Application.ApplicationDir(), "db")
+		dataDir = filepath.Join(homeDir(t.Runtime), "db")
 
 		if err := createDirIfNeeded(dataDir, t.DataDirPerm); err != nil {
 			return nil, err
 		}
 
-		dataDir = filepath.Join(dataDir, t.Application.Name())
+		dataDir = filepath.Join(dataDir, resolveApplicationName(t.AppName, t.CliApp))
 	}
 
 	if err := createDirIfNeeded(dataDir, t.DataDirPerm); err != nil {
@@ -69,10 +72,10 @@ func (t *implRaftSnapshotFactory) Object() (object interface{}, err error) {
 	if t.KeyProperty != "" {
 		encryptionToken := t.Properties.GetString(t.KeyProperty, "")
 		if encryptionToken == "" {
-			var ok bool
-			encryptionToken, ok = t.SystemEnvironmentPropertyResolver.PromptProperty(t.KeyProperty)
-			if !ok || encryptionToken == "" {
-				return nil, xerrors.Errorf("'%s' encryption token is required", t.KeyProperty)
+			// fall back to the environment, e.g. raft.snapshot-key -> RAFT_SNAPSHOT_KEY
+			encryptionToken = os.Getenv(envKey(t.KeyProperty))
+			if encryptionToken == "" {
+				return nil, xerrors.Errorf("'%s' encryption token is required, set the property or the '%s' environment variable", t.KeyProperty, envKey(t.KeyProperty))
 			}
 		}
 		return NewEncryptedSnapshotStore(snapshots, encryptionToken)

@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/serf/cmd/serf/command/agent"
 	"github.com/hashicorp/serf/serf"
 	"go.arpabet.com/raft/raftpb"
-	"go.arpabet.com/sprint"
+	"go.arpabet.com/servion"
 	"reflect"
 )
 
@@ -19,7 +19,7 @@ var RaftGrpcServerClass = reflect.TypeOf((*RaftGrpcServer)(nil)).Elem()
 
 type RaftGrpcServer interface {
 	glue.InitializingBean
-	sprint.Component
+	servion.Component
 }
 
 var RaftClientPoolClass = reflect.TypeOf((*RaftClientPool)(nil)).Elem()
@@ -60,8 +60,8 @@ type RaftService interface {
 var RaftServerClass = reflect.TypeOf((*RaftServer)(nil)).Elem()
 
 type RaftServer interface {
-	sprint.Server
-	sprint.Component
+	servion.Server
+	servion.Component
 
 	Transport() (raft.Transport, bool)
 
@@ -74,8 +74,8 @@ type RaftServer interface {
 var SerfServerClass = reflect.TypeOf((*SerfServer)(nil)).Elem()
 
 type SerfServer interface {
-	sprint.Server
-	sprint.Component
+	servion.Server
+	servion.Component
 
 	Config() (*serf.Config, bool)
 

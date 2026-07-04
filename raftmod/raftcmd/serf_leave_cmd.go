@@ -6,91 +6,64 @@
 package raftcmd
 
 import (
-	"flag"
-	"strings"
+	"context"
 
 	"github.com/hashicorp/serf/client"
+	"go.arpabet.com/cligo"
 	"golang.org/x/xerrors"
 )
 
 type serfLeaveCommand struct {
+	Parent cligo.CliGroup `cli:"group=serf"`
+	Prov   ClientProvider `inject:""`
+
+	Node  string `cli:"argument=node,default="`
+	Force bool   `cli:"option=force,default=false,help=Forces the given member of the Serf cluster to enter the 'left' state."`
+	Prune bool   `cli:"option=prune,default=false,help=Remove agent forcibly from list of members."`
 }
 
-func SerfLeaveCommand() SerfCommand {
+func SerfLeaveCommand() cligo.CliCommand {
 	return &serfLeaveCommand{}
 }
 
-func (t serfLeaveCommand) Help() string {
-	helpText := `
-Usage: serf leave [name]
-
-  Causes the agent to leave the Serf cluster.
-
-  -force           Forces a member of a Serf cluster to enter the "left" state
-  -prune           Remove agent forcibly from list of members.
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (t serfLeaveCommand) SubCommand() string {
+func (t *serfLeaveCommand) Command() string {
 	return "leave"
 }
 
-func (t serfLeaveCommand) Synopsis() string {
-	return "Leaves the Serf cluster"
+func (t *serfLeaveCommand) Help() (string, string) {
+	return "Leaves the Serf cluster.",
+		`Causes the local agent to gracefully leave the Serf cluster. With --force,
+NODE names a member that is forced to enter the 'left' state.`
 }
 
-func (t serfLeaveCommand) Run(prov ClientProvider, args []string) error {
+func (t *serfLeaveCommand) Run(ctx context.Context) error {
+	return t.Prov.DoWithClient(func(cli *client.RPCClient) error {
 
-	var force bool
-	var prune bool
+		if t.Force {
 
-	cmdFlags := flag.NewFlagSet("leave", flag.ContinueOnError)
-	cmdFlags.Usage = func() { println(t.Help()) }
-	cmdFlags.BoolVar(&force, "force", false, "forces a member leave")
-	cmdFlags.BoolVar(&prune, "prune", false, "remove forcibly from list")
+			if t.Node == "" {
+				return xerrors.New("a node name must be specified to force leave")
+			}
 
-	if err := cmdFlags.Parse(args); err != nil {
-		return err
-	}
+			if t.Prune {
+				if err := cli.ForceLeavePrune(t.Node); err != nil {
+					return xerrors.Errorf("force leaving with prune, %v", err)
+				}
+			} else {
+				if err := cli.ForceLeave(t.Node); err != nil {
+					return xerrors.Errorf("force leaving, %v", err)
+				}
+			}
 
-	nodes := cmdFlags.Args()
-
-	return prov.DoWithClient(func(cli *client.RPCClient) error {
-		return t.doRun(cli, nodes, force, prune)
-	})
-}
-
-func (t serfLeaveCommand) doRun(client *client.RPCClient, nodes []string, force, prune bool) error {
-
-	if force {
-
-		if len(nodes) != 1 {
-			return xerrors.Errorf("A node name must be specified to force leave.")
+			println("Force leave complete")
+			return nil
 		}
 
-		if prune {
-			err := client.ForceLeavePrune(nodes[0])
-			if err != nil {
-				return xerrors.Errorf("force leaving with prune, %v", err)
-			}
-		} else {
-			err := client.ForceLeave(nodes[0])
-			if err != nil {
-				return xerrors.Errorf("force leaving, %v", err)
-			}
-		}
-
-		println("Force leave complete")
-		return nil
-
-	} else {
-		if err := client.Leave(); err != nil {
+		if err := cli.Leave(); err != nil {
 			return xerrors.Errorf("error leaving, %v", err)
 		}
 
 		println("Graceful leave complete")
 		return nil
-	}
-
+	})
 }

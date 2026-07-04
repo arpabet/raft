@@ -8,7 +8,6 @@ package raftgrpc
 import (
 	"go.arpabet.com/raft/raftapi"
 	"go.arpabet.com/raft/raftpb"
-	"go.arpabet.com/sprint"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -29,11 +28,15 @@ type implRaftGrpcServer struct {
 
 	GrpcServer *grpc.Server `inject:""`
 
-	AuthorizationMiddleware sprint.AuthorizationMiddleware `inject:""`
-	NodeService             sprint.NodeService             `inject:""`
-	RaftServer              raftapi.RaftServer             `inject:""`
-	RaftService             raftapi.RaftService            `inject:""`
-	RaftClientPool          raftapi.RaftClientPool         `inject:""`
+	// Auth gates the control API to ADMIN callers. Optional: when absent the
+	// gate is skipped and the transport (e.g. mTLS) is expected to
+	// authenticate peers.
+	Auth raftapi.AuthorizationMiddleware `inject:"optional"`
+
+	NodeService    raftapi.NodeService    `inject:""`
+	RaftServer     raftapi.RaftServer     `inject:""`
+	RaftService    raftapi.RaftService    `inject:""`
+	RaftClientPool raftapi.RaftClientPool `inject:""`
 
 	RaftTimeout time.Duration `value:"raft.timeout,default=10s"`
 

@@ -21,21 +21,16 @@ import (
 	"go.uber.org/zap"
 )
 
-// stubNodeService satisfies sprint.NodeService; only NodeIdHex is meaningful.
+// stubNodeService satisfies raftapi.NodeService; only NodeIdHex is meaningful.
 type stubNodeService struct{}
 
-func (stubNodeService) PostConstruct() error                      { return nil }
-func (stubNodeService) BeanName() string                          { return "test-node-service" }
-func (stubNodeService) GetStats(func(string, string) bool) error  { return nil }
-func (stubNodeService) NodeId() uint64                            { return 1 }
-func (stubNodeService) NodeIdHex() string                         { return testNodeID }
-func (stubNodeService) LocalName() string                         { return "test" }
-func (stubNodeService) LANName() string                           { return "test" }
-func (stubNodeService) WANName() string                           { return "test" }
-func (stubNodeService) DCName() string                            { return "default" }
-func (stubNodeService) NodeSeq() int                              { return 0 }
-func (stubNodeService) Issue() uuid.UUID                          { return uuid.UUID{} }
-func (stubNodeService) Parse(uuid.UUID) (int64, int64, int)       { return 0, 0, 0 }
+func (stubNodeService) BeanName() string  { return "test-node-service" }
+func (stubNodeService) NodeId() uint64    { return 1 }
+func (stubNodeService) NodeIdHex() string { return testNodeID }
+func (stubNodeService) LocalName() string { return "test" }
+func (stubNodeService) LANName() string   { return "test" }
+func (stubNodeService) NodeSeq() int      { return 0 }
+func (stubNodeService) Issue() uuid.UUID  { return uuid.UUID{} }
 
 const testNodeID = "node-abc"
 
@@ -53,7 +48,7 @@ func (f *testFSM) Snapshot() (raft.FSMSnapshot, error) { return nil, nil }
 func (f *testFSM) Restore(io.ReadCloser) error         { return nil }
 
 // testRaftServer implements raftapi.RaftServer over a real in-memory raft. Only
-// Raft/Transport/IsLeader are exercised by the handlers; the sprint lifecycle
+// Raft/Transport/IsLeader are exercised by the handlers; the server lifecycle
 // methods are no-ops to satisfy the interface.
 type testRaftServer struct {
 	r  *raft.Raft

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/hashicorp/raft"
@@ -134,8 +135,13 @@ func portOf(address string) (int, error) {
 	return port, err
 }
 
-// hostPort splits a host:port address into its host and numeric port.
+// hostPort splits a host:port address into its host and numeric port. A leading
+// scheme ("tcp://host:port", the style value-rpc bind addresses use) is accepted
+// and ignored.
 func hostPort(address string) (string, int, error) {
+	if i := strings.Index(address, "://"); i >= 0 {
+		address = address[i+3:]
+	}
 	host, portStr, err := net.SplitHostPort(address)
 	if err != nil {
 		return "", 0, err

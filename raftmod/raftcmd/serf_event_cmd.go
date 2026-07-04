@@ -6,78 +6,43 @@
 package raftcmd
 
 import (
-	"flag"
+	"context"
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/serf/client"
+	"go.arpabet.com/cligo"
 	"golang.org/x/xerrors"
 )
 
 type serfEventCommand struct {
+	Parent cligo.CliGroup `cli:"group=serf"`
+	Prov   ClientProvider `inject:""`
+
+	Name     string `cli:"argument=name"`
+	Payload  string `cli:"argument=payload,default="`
+	Coalesce bool   `cli:"option=coalesce,default=true,help=Whether repeated events of the same name within a short period of time are coalesced."`
 }
 
-func SerfEventCommand() SerfCommand {
+func SerfEventCommand() cligo.CliCommand {
 	return &serfEventCommand{}
 }
 
-func (t serfEventCommand) SubCommand() string {
+func (t *serfEventCommand) Command() string {
 	return "event"
 }
 
-func (t serfEventCommand) Help() string {
-	helpText := `
-Usage: serf event [options] name payload
-
-  Dispatches a custom event across the Serf cluster.
-
-Options:
-
-  -coalesce=true/false      Whether this event can be coalesced. This means
-                            that repeated events of the same name within a
-                            short period of time are ignored, except the last
-                            one received. Default is true.
-`
-	return strings.TrimSpace(helpText)
+func (t *serfEventCommand) Help() (string, string) {
+	return "Emit a custom event through the Serf cluster.",
+		`Dispatches a custom event across the Serf cluster with the given NAME and
+optional PAYLOAD.`
 }
 
-func (t serfEventCommand) Synopsis() string {
-	return "Emit a custom event through the Serf cluster"
-}
-
-func (t serfEventCommand) Run(prov ClientProvider, args []string) error {
-
-	var coalesce bool
-
-	cmdFlags := flag.NewFlagSet("event", flag.ContinueOnError)
-	cmdFlags.Usage = func() { println(t.Help()) }
-	cmdFlags.BoolVar(&coalesce, "coalesce", true, "coalesce")
-
-	if err := cmdFlags.Parse(args); err != nil {
-		return err
-	}
-
-	args = cmdFlags.Args()
-	if len(args) < 1 {
-		return xerrors.Errorf("an event name must be specified\n%s", t.Help())
-	} else if len(args) > 2 {
-		return xerrors.Errorf("too many command line arguments\n%s", t.Help())
-	}
-
-	event := args[0]
-	payload := []byte(args[1])
-
-	return prov.DoWithClient(func(cli *client.RPCClient) error {
-		return t.doRun(cli, event, payload, coalesce)
+func (t *serfEventCommand) Run(ctx context.Context) error {
+	return t.Prov.DoWithClient(func(cli *client.RPCClient) error {
+		if err := cli.UserEvent(t.Name, []byte(t.Payload), t.Coalesce); err != nil {
+			return xerrors.Errorf("sending event '%s', %v", t.Name, err)
+		}
+		fmt.Printf("Event '%s' dispatched! Coalescing enabled: %#v\n", t.Name, t.Coalesce)
+		return nil
 	})
-}
-
-func (t serfEventCommand) doRun(client *client.RPCClient, event string, payload []byte, coalesce bool) error {
-
-	if err := client.UserEvent(event, payload, coalesce); err != nil {
-		return xerrors.Errorf("sending event '%s', %v", event, err)
-	}
-
-	fmt.Printf("Event '%s' dispatched! Coalescing enabled: %#v", event, coalesce)
-	return nil
 }

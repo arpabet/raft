@@ -110,9 +110,10 @@ func (t *implStreamDecrypter) Read(p []byte) (int, error) {
 	n, err := t.source.Read(p)
 	if n > 0 {
 		t.stream.XORKeyStream(p[:n], p[:n])
-		return n, err
 	}
-	return 0, io.EOF
+	// Propagate the source's n/err verbatim: masking a transport error as io.EOF
+	// would silently truncate the decrypted stream.
+	return n, err
 }
 
 func (t *implStreamDecrypter) Close() error {

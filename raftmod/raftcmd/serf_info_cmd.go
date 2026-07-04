@@ -7,75 +7,49 @@ package raftcmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/hashicorp/serf/client"
+	"go.arpabet.com/cligo"
 	"golang.org/x/xerrors"
 )
 
 type serfInfoCommand struct {
+	Parent cligo.CliGroup `cli:"group=serf"`
+	Prov   ClientProvider `inject:""`
+
+	Format string `cli:"option=format,default=text,help=Output format: 'json' or 'text'."`
 }
 
-func SerfInfoCommand() SerfCommand {
+func SerfInfoCommand() cligo.CliCommand {
 	return &serfInfoCommand{}
 }
 
-func (t serfInfoCommand) Help() string {
-	helpText := `
-Usage: serf info [options]
-
-	Provides debugging information for operators
-
-Options:
-
-  -format                  If provided, output is returned in the specified
-                           format. Valid formats are 'json', and 'text' (default)
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (t serfInfoCommand) SubCommand() string {
+func (t *serfInfoCommand) Command() string {
 	return "info"
 }
 
-func (t serfInfoCommand) Synopsis() string {
-	return "Provides debugging information for operators"
+func (t *serfInfoCommand) Help() (string, string) {
+	return "Provides debugging information for operators.", ""
 }
 
-func (t serfInfoCommand) Run(prov ClientProvider, args []string) error {
-
-	var format string
-	cmdFlags := flag.NewFlagSet("info", flag.ContinueOnError)
-	cmdFlags.Usage = func() { println(t.Help()) }
-	cmdFlags.StringVar(&format, "format", "text", "output format")
-
-	if err := cmdFlags.Parse(args); err != nil {
-		return err
-	}
-
-	return prov.DoWithClient(func(cli *client.RPCClient) error {
-		return t.doRun(cli, format)
+func (t *serfInfoCommand) Run(ctx context.Context) error {
+	return t.Prov.DoWithClient(func(cli *client.RPCClient) error {
+		stats, err := cli.Stats()
+		if err != nil {
+			return err
+		}
+		output, err := formatOutput(statsString(stats), t.Format)
+		if err != nil {
+			return xerrors.Errorf("encoding error: %s", err)
+		}
+		println(string(output))
+		return nil
 	})
-}
-
-func (t serfInfoCommand) doRun(client *client.RPCClient, format string) error {
-
-	stats, err := client.Stats()
-	if err != nil {
-		return err
-	}
-
-	output, err := formatOutput(statsString(stats), format)
-	if err != nil {
-		return xerrors.Errorf("encoding error: %s", err)
-	}
-
-	println(output)
-	return nil
 }
 
 type statsString map[string]map[string]string

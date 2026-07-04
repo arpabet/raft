@@ -6,44 +6,33 @@
 package raftcmd
 
 import (
+	"context"
 	"fmt"
+
 	"github.com/hashicorp/serf/serf"
 	"github.com/hashicorp/serf/version"
-	"go.arpabet.com/sprint"
-	"strings"
+	"go.arpabet.com/cligo"
 )
 
 type serfVersionCommand struct {
-	Application  sprint.Application   `inject:""`
+	Parent cligo.CliGroup `cli:"group=serf"`
 }
 
-func SerfVersionCommand() SerfCommand {
+func SerfVersionCommand() cligo.CliCommand {
 	return &serfVersionCommand{}
 }
 
-func (t serfVersionCommand) Help() string {
-	helpText := `
-Usage: serf version
-
-  Prints the Serf version.
-
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (t serfVersionCommand) SubCommand() string {
+func (t *serfVersionCommand) Command() string {
 	return "version"
 }
 
-func (t serfVersionCommand) Synopsis() string {
-	return "Prints the Serf version"
+func (t *serfVersionCommand) Help() (string, string) {
+	return "Prints the Serf version.", ""
 }
 
-func (t serfVersionCommand) Run(_ ClientProvider, args []string) error {
+func (t *serfVersionCommand) Run(ctx context.Context) error {
 	println(version.GetHumanVersion())
 	fmt.Printf("Agent Protocol: %d (Understands back to: %d)\n",
 		serf.ProtocolVersionMax, serf.ProtocolVersionMin)
 	return nil
 }
-
-

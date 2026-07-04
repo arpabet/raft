@@ -6,14 +6,13 @@
 package raftcmd
 
 import (
-	"flag"
+	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/serf/client"
 	"github.com/hashicorp/serf/serf"
-	"go.arpabet.com/sprint"
+	"go.arpabet.com/cligo"
 	"golang.org/x/xerrors"
 )
 
@@ -28,50 +27,31 @@ Troubleshooting tips:
 )
 
 type serfReachabilityCommand struct {
-	Application sprint.Application `inject:""`
+	Parent cligo.CliGroup `cli:"group=serf"`
+	Prov   ClientProvider `inject:""`
+
+	Verbose bool `cli:"option=verbose,default=false,help=Verbose mode."`
 }
 
-func SerfReachabilityCommand() SerfCommand {
+func SerfReachabilityCommand() cligo.CliCommand {
 	return &serfReachabilityCommand{}
 }
 
-func (t serfReachabilityCommand) SubCommand() string {
+func (t *serfReachabilityCommand) Command() string {
 	return "reachability"
 }
 
-func (t serfReachabilityCommand) Help() string {
-	helpText := `
-Usage: serf reachability [options]
-
-  Tests the network reachability of this node
-
-Options:
-
-  -verbose                  Verbose mode
-`
-	return strings.TrimSpace(helpText)
+func (t *serfReachabilityCommand) Help() (string, string) {
+	return "Tests the network reachability of this node.", ""
 }
 
-func (t serfReachabilityCommand) Synopsis() string {
-	return "Emit a custom event through the Serf cluster"
-}
-
-func (t serfReachabilityCommand) Run(prov ClientProvider, args []string) error {
-	var verbose bool
-	cmdFlags := flag.NewFlagSet("reachability", flag.ContinueOnError)
-	cmdFlags.Usage = func() { println(t.Help()) }
-	cmdFlags.BoolVar(&verbose, "verbose", false, "verbose mode")
-
-	if err := cmdFlags.Parse(args); err != nil {
-		return err
-	}
-
-	return prov.DoWithClient(func(cli *client.RPCClient) error {
-		return t.doRun(cli, verbose)
+func (t *serfReachabilityCommand) Run(ctx context.Context) error {
+	return t.Prov.DoWithClient(func(cli *client.RPCClient) error {
+		return t.doRun(cli)
 	})
 }
 
-func (t serfReachabilityCommand) doRun(cli *client.RPCClient, verbose bool) error {
+func (t *serfReachabilityCommand) doRun(cli *client.RPCClient) error {
 
 	shutdownCh := makeShutdownCh()
 	ackCh := make(chan string, 128)
@@ -116,7 +96,7 @@ OUTER:
 			if a == "" {
 				break OUTER
 			}
-			if verbose {
+			if t.Verbose {
 				fmt.Printf("\tAck from '%s'\n", a)
 			}
 			numAcks++
@@ -132,7 +112,7 @@ OUTER:
 		}
 	}
 
-	if verbose {
+	if t.Verbose {
 		total := float64(time.Now().Sub(start)) / float64(time.Second)
 		timeToLast := float64(last.Sub(start)) / float64(time.Second)
 		fmt.Printf("Query time: %0.2f sec, time to last response: %0.2f sec\n", total, timeToLast)
@@ -167,5 +147,4 @@ OUTER:
 		return xerrors.New("too few asks, this could mean Serf gossip packets are being lost due to a misconfiguration or network issue.")
 	}
 	return nil
-
 }

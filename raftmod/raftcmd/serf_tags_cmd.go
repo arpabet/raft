@@ -6,71 +6,47 @@
 package raftcmd
 
 import (
-	"flag"
-	"strings"
+	"context"
 
 	"github.com/hashicorp/serf/client"
 	"github.com/hashicorp/serf/cmd/serf/command/agent"
-	"go.arpabet.com/sprint"
+	"go.arpabet.com/cligo"
 	"golang.org/x/xerrors"
 )
 
 type serfTagsCommand struct {
-	Application sprint.Application `inject:""`
+	Parent cligo.CliGroup `cli:"group=serf"`
+	Prov   ClientProvider `inject:""`
+
+	Set   []string `cli:"option=set,help=Creates or modifies the value of a tag, specified as key=value; repeatable."`
+	Unset []string `cli:"option=unset,help=Removes a tag, if present; repeatable."`
 }
 
-func SerfTagsCommand() SerfCommand {
+func SerfTagsCommand() cligo.CliCommand {
 	return &serfTagsCommand{}
 }
 
-func (t serfTagsCommand) Help() string {
-	helpText := `
-Usage: serf tags [options] ...
-
-  Modifies tags on a running Serf agent.
-
-Options:
-
-  -set key=value            Creates or modifies the value of a tag
-  -unset key               Removes a tag, if present
-`
-	return strings.TrimSpace(helpText)
-}
-
-func (t serfTagsCommand) SubCommand() string {
+func (t *serfTagsCommand) Command() string {
 	return "tags"
 }
 
-func (t serfTagsCommand) Synopsis() string {
-	return "Modify tags of a running Serf agent"
+func (t *serfTagsCommand) Help() (string, string) {
+	return "Modify tags of a running Serf agent.", ""
 }
 
-func (t serfTagsCommand) Run(prov ClientProvider, args []string) error {
-	var tagPairs []string
-	var delTags []string
-	cmdFlags := flag.NewFlagSet("tags", flag.ContinueOnError)
-	cmdFlags.Usage = func() { println(t.Help()) }
-	cmdFlags.Var((*agent.AppendSliceValue)(&tagPairs), "set",
-		"tag pairs, specified as key=value")
-	cmdFlags.Var((*agent.AppendSliceValue)(&delTags), "unset",
-		"tag keys to unset")
+func (t *serfTagsCommand) Run(ctx context.Context) error {
 
-	if err := cmdFlags.Parse(args); err != nil {
-		return err
+	if len(t.Set) == 0 && len(t.Unset) == 0 {
+		return xerrors.New("at least one of --set or --unset must be specified")
 	}
 
-	if len(tagPairs) == 0 && len(delTags) == 0 {
-		println(t.Help())
-		return nil
-	}
-
-	tags, err := agent.UnmarshalTags(tagPairs)
+	tags, err := agent.UnmarshalTags(t.Set)
 	if err != nil {
 		return err
 	}
 
-	err = prov.DoWithClient(func(cli *client.RPCClient) error {
-		return cli.UpdateTags(tags, delTags)
+	err = t.Prov.DoWithClient(func(cli *client.RPCClient) error {
+		return cli.UpdateTags(tags, t.Unset)
 	})
 	if err != nil {
 		return xerrors.Errorf("setting tags '%s', %v", tags, err)

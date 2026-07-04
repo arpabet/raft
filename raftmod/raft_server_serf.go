@@ -55,7 +55,7 @@ func (t *implRaftServer) eventHandlerLAN() {
 
 func (t *implRaftServer) nodeJoinLAN(me serf.MemberEvent) {
 	for _, m := range me.Members {
-		server, err := ParseServerTags(m, t.Application.Name())
+		server, err := ParseServerTags(m, t.applicationName())
 		if err != nil {
 			t.Log.Debug("SerfNodeJoinLAN", zap.Error(err))
 			continue
@@ -69,7 +69,7 @@ func (t *implRaftServer) nodeJoinLAN(me serf.MemberEvent) {
 
 func (t *implRaftServer) nodeUpdateLAN(me serf.MemberEvent) {
 	for _, m := range me.Members {
-		server, err := ParseServerTags(m, t.Application.Name())
+		server, err := ParseServerTags(m, t.applicationName())
 		if err != nil {
 			t.Log.Debug("SerfNodeUpdateLAN", zap.Error(err))
 			continue
@@ -82,7 +82,7 @@ func (t *implRaftServer) nodeUpdateLAN(me serf.MemberEvent) {
 
 func (t *implRaftServer) nodeFailedLAN(me serf.MemberEvent) {
 	for _, m := range me.Members {
-		server, err := ParseServerTags(m, t.Application.Name())
+		server, err := ParseServerTags(m, t.applicationName())
 		if err != nil {
 			t.Log.Debug("SerfNodeFailedLAN", zap.Error(err))
 			continue
@@ -122,7 +122,7 @@ func (t *implRaftServer) localEvent(event serf.UserEvent) {
 
 	t.Log.Info("UserEvent", zap.String("event", event.Name), zap.String("payload", string(event.Payload)))
 
-	prefix := t.Application.Name() + ":"
+	prefix := t.applicationName() + ":"
 	if !strings.HasPrefix(event.Name,  prefix) {
 		return
 	}
