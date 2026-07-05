@@ -6,7 +6,7 @@ require (
 	github.com/hashicorp/raft v1.7.3
 	github.com/hashicorp/serf v0.10.2
 	go.arpabet.com/glue v1.5.1
-	go.arpabet.com/raft/raftpb v0.3.1
+	go.arpabet.com/raft/raftpb v0.4.0
 	go.arpabet.com/servion v1.5.3
 	go.arpabet.com/uuid v1.1.1
 )
