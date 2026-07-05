@@ -13,7 +13,7 @@ require (
 	go.arpabet.com/cligo v0.5.0
 	go.arpabet.com/glue v1.5.1
 	go.arpabet.com/raft-badger v1.2.2
-	go.arpabet.com/raft/raftapi v0.4.0
+	go.arpabet.com/raft/raftapi v0.4.1
 	go.arpabet.com/servion v1.5.3
 	go.arpabet.com/store v1.3.3
 	go.arpabet.com/uuid v1.1.1
@@ -79,7 +79,7 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	go.arpabet.com/raft/raftpb v0.4.0 // indirect
+	go.arpabet.com/raft/raftpb v0.4.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect
 	go.opentelemetry.io/otel/metric v1.44.0 // indirect

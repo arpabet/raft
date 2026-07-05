@@ -6,8 +6,8 @@ require (
 	github.com/hashicorp/raft v1.7.3
 	go.arpabet.com/cligo v0.5.0
 	go.arpabet.com/glue v1.5.1
-	go.arpabet.com/raft/raftapi v0.4.0
-	go.arpabet.com/raft/raftpb v0.4.0
+	go.arpabet.com/raft/raftapi v0.4.1
+	go.arpabet.com/raft/raftpb v0.4.1
 	go.arpabet.com/uuid v1.1.1
 	go.arpabet.com/value v1.3.1
 	go.arpabet.com/value-rpc v1.5.4
