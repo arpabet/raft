@@ -28,7 +28,11 @@ type implRaftServer struct {
 	Properties glue.Properties `inject:""`
 	Log        *zap.Logger     `inject:""`
 	HCLog      hclog.Logger    `inject:""`
-	TlsConfig  *tls.Config     `inject:"optional"`
+	// TlsConfig, when a bean named "raft-transport-tls" is present, secures the
+	// consensus transport with mutual TLS (log replication between peers). The
+	// qualifier keeps it distinct from the control-plane pool's config, so a
+	// deployment can secure the two channels independently.
+	TlsConfig *tls.Config `inject:"optional,bean=raft-transport-tls"`
 
 	CliApp      cligo.CliApplication `inject:"optional"`
 	NodeService raftapi.NodeService  `inject:""`
@@ -125,6 +129,13 @@ func (t *implRaftServer) Bind() (err error) {
 	t.listener, err = net.Listen("tcp", t.RaftAddress)
 	if err != nil {
 		return xerrors.Errorf("bind failed on '%s', %v", t.RaftAddress, err)
+	}
+	if t.TlsConfig != nil {
+		// Mutual TLS on the consensus transport: accepted connections are wrapped as
+		// TLS servers, so the peer's client certificate is required and verified
+		// (TlsConfig carries ClientCAs + RequireAndVerifyClientCert). The Dial side
+		// (TCPStreamLayer.Dial) verifies the server certificate symmetrically.
+		t.listener = tls.NewListener(t.listener, t.TlsConfig)
 	}
 
 	advertise, err := net.ResolveTCPAddr("tcp", ReplaceToPrivateIP(t.RaftAddress))

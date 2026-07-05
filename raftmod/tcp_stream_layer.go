@@ -6,7 +6,6 @@
 package raftmod
 
 import (
-	"crypto/rand"
 	"crypto/tls"
 	"net"
 	"time"
@@ -58,12 +57,12 @@ func (t *TCPStreamLayer) Dial(address raft.ServerAddress, timeout time.Duration)
 
 	if t.tlsConfigOpt != nil {
 
-		tlsConf := &tls.Config{
-			Rand:               rand.Reader,
-			Certificates:       t.tlsConfigOpt.Certificates,
-			ClientCAs:          t.tlsConfigOpt.ClientCAs,
-			InsecureSkipVerify: true,
-		}
+		// Verify the peer server against our CA (RootCAs) rather than skipping
+		// verification: this is real mutual TLS. tls.DialWithDialer derives the
+		// ServerName from the dial address host when the config leaves it empty, so
+		// it is matched against the peer certificate's SANs (the node's advertised
+		// IP / id). We present our own client certificate from Certificates.
+		tlsConf := t.tlsConfigOpt.Clone()
 
 		d := net.Dialer{Timeout: timeout}
 		return tls.DialWithDialer(&d, "tcp", string(address), tlsConf)

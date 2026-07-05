@@ -33,9 +33,11 @@ type ClientPool struct {
 	RaftAddress string `value:"raft.bind-address,default="`
 	RPCBean     string `value:"raft.rpc-bean-name,default="`
 
-	// TLSConfig, when injected, dials the control service over TLS — mTLS parity
-	// with the gRPC pool. Nil means a plaintext TCP dial.
-	TLSConfig *tls.Config `inject:"optional"`
+	// TLSConfig, when a bean named "raft-control-tls" is present, dials the control
+	// service over TLS — mTLS parity with the gRPC pool. Nil means a plaintext TCP
+	// dial. The qualifier keeps the control-plane config distinct from the consensus
+	// transport's ("raft-transport-tls"), so the two channels are secured separately.
+	TLSConfig *tls.Config `inject:"optional,bean=raft-control-tls"`
 
 	portDiff int
 
