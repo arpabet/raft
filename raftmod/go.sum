@@ -247,10 +247,10 @@ go.arpabet.com/raft/raftpb v0.3.1 h1:gWdbzbCw/jJuoZ0NJ/17v5OLpSqNGcEVCNqq4u+g7BM
 go.arpabet.com/raft/raftpb v0.3.1/go.mod h1:jMWrCo2hEUFydFjxf7XDkioV942yfdc3DmcWxOyNDs0=
 go.arpabet.com/servion v1.5.3 h1:WeVnbU5l20rv+8/mFa8uRtyINCDOty0ztmdI0luwfyU=
 go.arpabet.com/servion v1.5.3/go.mod h1:Q/T0bxPKH9RLgMmFu7qe50xfgfNvTmey+e/biXs2lhc=
-go.arpabet.com/sprint v1.2.0 h1:cRa/dNhKCE5N4RNcXz2nXQ3LCJDmHKZgJtTQivOvQ3U=
-go.arpabet.com/sprint v1.2.0/go.mod h1:SRMQMFPmzdtB1/Bz/gGla2OLgPRKgHv5/CTCFf2ilks=
-go.arpabet.com/sprint/sprintpb v1.2.0 h1:9lBwmWeUQnjLtYkpLD9tDDmQIGaYlJaWloc9bp2oal4=
-go.arpabet.com/sprint/sprintpb v1.2.0/go.mod h1:kvnsjrnoeiAWgLrNLPqpqvlCmeOQVUGS7xY5zMMzBoo=
+go.arpabet.com/sprint v1.2.1 h1:h7Fl34YjMPc7BRyqZhABub2pwOi52Oi5BhwfEnQ9CA8=
+go.arpabet.com/sprint v1.2.1/go.mod h1:ZkLsV5DCbqr/XJfCkCQJvGAQXDX33lZpdfY9gt1Gpao=
+go.arpabet.com/sprint/sprintpb v1.2.1 h1:F52r/8Gi+BYF660CJ0IUzjy2KXON9m4jhasMxlYMx0Q=
+go.arpabet.com/sprint/sprintpb v1.2.1/go.mod h1:kvnsjrnoeiAWgLrNLPqpqvlCmeOQVUGS7xY5zMMzBoo=
 go.arpabet.com/store v1.3.3 h1:yIhkAYwbfhK/ZQsEzV58dsKSFbCB5UOYGzz2KC7WeAY=
 go.arpabet.com/store v1.3.3/go.mod h1:fm9ZZll0sbqf223CoqMC1isUQP1MYJ73t7FT9nHrYqs=
 go.arpabet.com/uuid v1.1.1 h1:adr2/3f3/cyy+zPKhkEDyDb/HqdGcsbcGvBYnsu0j0s=

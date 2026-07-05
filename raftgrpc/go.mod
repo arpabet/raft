@@ -57,8 +57,8 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	go.arpabet.com/glue v1.5.1 // indirect
-	go.arpabet.com/sprint v1.2.0 // indirect
-	go.arpabet.com/sprint/sprintpb v1.2.0 // indirect
+	go.arpabet.com/sprint v1.2.1 // indirect
+	go.arpabet.com/sprint/sprintpb v1.2.1 // indirect
 	go.arpabet.com/store v1.3.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect

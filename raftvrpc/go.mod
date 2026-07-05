@@ -10,7 +10,7 @@ require (
 	go.arpabet.com/raft/raftpb v0.3.1
 	go.arpabet.com/uuid v1.1.1
 	go.arpabet.com/value v1.3.1
-	go.arpabet.com/value-rpc v1.5.3
+	go.arpabet.com/value-rpc v1.5.4
 	go.uber.org/zap v1.28.0
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da
 )
@@ -58,8 +58,8 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	go.arpabet.com/sprint v1.2.0 // indirect
-	go.arpabet.com/sprint/sprintpb v1.2.0 // indirect
+	go.arpabet.com/sprint v1.2.1 // indirect
+	go.arpabet.com/sprint/sprintpb v1.2.1 // indirect
 	go.arpabet.com/store v1.3.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
