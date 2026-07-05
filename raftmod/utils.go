@@ -72,6 +72,11 @@ func PrivateIP() (net.IP, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Prefer a private IPv4 (widely reachable, no bracket handling); fall back to
+	// a private IPv6 (e.g. a ULA) only if no private IPv4 exists. Returning the
+	// first private-of-any-family picks an IPv6 ULA on dual-stack hosts, which is
+	// rarely the intended advertise address.
+	var fallback net.IP
 	for _, i := range ifaces {
 		addrs, err := i.Addrs()
 		if err != nil {
@@ -87,13 +92,21 @@ func PrivateIP() (net.IP, error) {
 				ip = v.IP
 			}
 
-			if ip.IsPrivate() {
+			if ip == nil || !ip.IsPrivate() {
+				continue
+			}
+			if ip.To4() != nil {
 				return ip, nil
 			}
-
+			if fallback == nil {
+				fallback = ip
+			}
 		}
 	}
 
+	if fallback != nil {
+		return fallback, nil
+	}
 	return nil, xerrors.New("no IP")
 }
 
@@ -120,12 +133,15 @@ func addLocalIP(addr string) string {
 }
 
 func ReplaceToPrivateIP(addr string) string {
-	parts := strings.Split(addr, ":")
-	if parts[0] == "" || parts[0] == "0.0.0.0" || parts[0] == "127.0.0.1" {
-		ipAddr, err := PrivateIP()
-		if err == nil {
-			parts[0] = ipAddr.String()
-			return strings.Join(parts, ":")
+	// net.SplitHostPort / JoinHostPort are IPv6-safe (brackets), unlike a naive
+	// strings.Split(":") which mangles an IPv6 host into "too many colons".
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" || host == "127.0.0.1" {
+		if ipAddr, err := PrivateIP(); err == nil {
+			return net.JoinHostPort(ipAddr.String(), port)
 		}
 	}
 	return addr
@@ -156,7 +172,8 @@ func ParseAndAdjustTCPAddr(address string, seq int) (*net.TCPAddr, error) {
 
 }
 
-/**
+/*
+*
 Resolves the application name: explicit 'application.name' property first,
 then the cligo application bean, then "raft".
 */
@@ -170,7 +187,8 @@ func resolveApplicationName(prop string, cliApp cligo.CliApplication) string {
 	return "raft"
 }
 
-/**
+/*
+*
 Maps a dotted property key to an environment variable name,
 e.g. raft.snapshot-key -> RAFT_SNAPSHOT_KEY.
 */
@@ -190,7 +208,8 @@ func envKey(key string) string {
 	return string(b)
 }
 
-/**
+/*
+*
 Home directory of the application: the servion runtime home when running
 under servion, otherwise the current directory.
 */
