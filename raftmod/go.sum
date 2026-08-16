@@ -231,10 +231,6 @@ github.com/stretchr/testify v1.7.2/go.mod h1:R6va5+xMeoiuVRoj+gSkQ7d3FALtqAAGI1F
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
-github.com/vmihailenco/msgpack/v5 v5.4.1 h1:cQriyiUvjTwOHg8QZaPihLWeRAAVoCpE00IUPn0Bjt8=
-github.com/vmihailenco/msgpack/v5 v5.4.1/go.mod h1:GaZTsDaehaPpQVyxrf5mtQlH+pc21PIudVV/E3rRQok=
-github.com/vmihailenco/tagparser/v2 v2.0.0 h1:y09buUbR+b5aycVFQs/g70pqKVZNBmxwAhO7/IwNM9g=
-github.com/vmihailenco/tagparser/v2 v2.0.0/go.mod h1:Wri+At7QHww0WTrCBeu4J6bNtoV6mEfg5OIWRZA9qds=
 go.arpabet.com/cligo v0.6.0 h1:kIFqXnPjZB15OWVqUDpcSrbz0l9WFOFnhfEnLk8rNrY=
 go.arpabet.com/cligo v0.6.0/go.mod h1:ya6WLB6XUw3zKAnHIIlyI+RrlvAhOwgsO2KxD1JDQGA=
 go.arpabet.com/glue v1.6.0 h1:cinoSN3ryh5ninkxLLLK0AuRxqZUC+2l/EFGuClL3ek=
@@ -247,10 +243,12 @@ go.arpabet.com/raft/raftpb v0.4.2 h1:Jr5O/qozBK5gVBz7LpCfzlgUWQ6aMaf6qxWogQiHXjw
 go.arpabet.com/raft/raftpb v0.4.2/go.mod h1:IJGHZYK4dDKCWwfJXo+Yz2q9CaCpIk9UTUlAdDW4+jE=
 go.arpabet.com/servion v1.6.0 h1:wIFpq2awVF0AcVizy/0pG3NpwYzlQ6lcVk6ZYbYpZzQ=
 go.arpabet.com/servion v1.6.0/go.mod h1:vNpEfPUcRWfkcIwaye6eIZTh1ICEv3hdew0+74YYalA=
-go.arpabet.com/store v1.4.2 h1:FwIjB0jlMEnHn3Tzcxq3ex3IC2Oi+Bj5CocdeSjaeo0=
-go.arpabet.com/store v1.4.2/go.mod h1:fm9ZZll0sbqf223CoqMC1isUQP1MYJ73t7FT9nHrYqs=
+go.arpabet.com/store v1.5.0 h1:HN9ulOFScEjfIY+AO39zZP3IMVy0VJA9WEoQNpfFOcI=
+go.arpabet.com/store v1.5.0/go.mod h1:wlhrFp9wNgBVfA+CT8BKLC11iCQXgrjVYwJ11d9fMpk=
 go.arpabet.com/uuid v1.1.1 h1:adr2/3f3/cyy+zPKhkEDyDb/HqdGcsbcGvBYnsu0j0s=
 go.arpabet.com/uuid v1.1.1/go.mod h1:/XflNFXTy2HHGWkAyo1PW5+5Ej1Vi0e+6YqMnXateCA=
+go.arpabet.com/value v1.4.0 h1:5eCsJCMpzEWdymoY8wzkxoiYA1TLk6+wgKuEyxN/m50=
+go.arpabet.com/value v1.4.0/go.mod h1:y1KB3Att1HYyv5gXJKpaZkU7zjEY9Sb9pruP5GVuEe0=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/otel v1.44.0 h1:JjwHmHpA4iZ3wBxluu2fbbE7j4kqlE8jXyAyPXH7HqU=
