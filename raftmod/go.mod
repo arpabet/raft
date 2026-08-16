@@ -10,12 +10,12 @@ require (
 	github.com/hashicorp/serf v0.10.2
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/stretchr/testify v1.11.1
-	go.arpabet.com/cligo v0.5.0
-	go.arpabet.com/glue v1.5.1
+	go.arpabet.com/cligo v0.6.0
+	go.arpabet.com/glue v1.6.0
 	go.arpabet.com/raft-badger v1.2.2
 	go.arpabet.com/raft/raftapi v0.4.2
-	go.arpabet.com/servion v1.5.3
-	go.arpabet.com/store v1.3.3
+	go.arpabet.com/servion v1.6.0
+	go.arpabet.com/store v1.4.2
 	go.arpabet.com/uuid v1.1.1
 	go.uber.org/atomic v1.11.0
 	go.uber.org/zap v1.28.0

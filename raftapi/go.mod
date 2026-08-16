@@ -5,9 +5,9 @@ go 1.25.0
 require (
 	github.com/hashicorp/raft v1.7.3
 	github.com/hashicorp/serf v0.10.2
-	go.arpabet.com/glue v1.5.1
+	go.arpabet.com/glue v1.6.0
 	go.arpabet.com/raft/raftpb v0.4.2
-	go.arpabet.com/servion v1.5.3
+	go.arpabet.com/servion v1.6.0
 	go.arpabet.com/uuid v1.1.1
 )
 
@@ -63,7 +63,7 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	go.arpabet.com/cligo v0.5.0 // indirect
+	go.arpabet.com/cligo v0.6.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
